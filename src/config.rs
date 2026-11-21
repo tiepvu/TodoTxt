@@ -1,7 +1,7 @@
 //! Konfiguration und Pfade (SPEC 9).
 
 use std::env;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SortKey {
@@ -42,7 +42,7 @@ pub fn expand_tilde(s: &str) -> PathBuf {
 #[cfg(not(windows))]
 fn xdg(var: &str, fallback: &str) -> Option<PathBuf> {
     match env::var_os(var) {
-        Some(v) if Path::new(&v).is_absolute() => Some(PathBuf::from(v)),
+        Some(v) if std::path::Path::new(&v).is_absolute() => Some(PathBuf::from(v)),
         _ => dirs::home_dir().map(|h| h.join(fallback)),
     }
 }
