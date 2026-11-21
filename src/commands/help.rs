@@ -32,7 +32,7 @@ Beispiele:
         if !args.is_empty() {
             return match ctx.registry.find(args) {
                 Some(c) => Ok(Output::Text(c.help().to_string())),
-                None => bail!("Unbekannter Befehl {args} – /help zeigt alle Befehle"),
+                None => bail!("Unbekannter Befehl /{} – /help zeigt alle Befehle", args.trim_start_matches('/')),
             };
         }
         let rows: Vec<(String, &str)> = ctx

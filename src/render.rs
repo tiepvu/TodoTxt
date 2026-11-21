@@ -3,7 +3,7 @@
 use chrono::NaiveDate;
 use owo_colors::OwoColorize;
 
-use crate::parser::{parse, parse_date};
+use crate::parser::{parse, parse_date, take_priority};
 use crate::view::Entry;
 
 #[derive(Debug, Clone, Copy)]
@@ -49,13 +49,18 @@ impl Renderer {
         }
     }
 
+    /// `(A)` usw. als Priorität – nur für den Zeilenanfang einer offenen Aufgabe.
+    fn priority_marker(&self, p: char) -> String {
+        let marker = format!("({p})");
+        match Self::priority_style(p) {
+            Some(style) => self.paint(&marker, style),
+            None => marker,
+        }
+    }
+
+    /// Färbt ein Wort der Beschreibung; `(A)` mitten im Text ist keine Priorität.
     fn token(&self, tok: &str, today: NaiveDate) -> String {
-        let b = tok.as_bytes();
-        if b.len() == 3 && b[0] == b'(' && b[2] == b')' && b[1].is_ascii_uppercase() {
-            if let Some(style) = Self::priority_style(b[1] as char) {
-                return self.paint(tok, style);
-            }
-        } else if tok.len() > 1 && tok.starts_with('+') {
+        if tok.len() > 1 && tok.starts_with('+') {
             return self.paint(tok, Style::Blue);
         } else if tok.len() > 1 && tok.starts_with('@') {
             return self.paint(tok, Style::Cyan);
@@ -100,7 +105,13 @@ impl Renderer {
 
     /// Eine Rohzeile (z. B. nach `/add`, `/done`); erledigte Zeilen grau.
     pub fn raw_line(&self, raw: &str, today: NaiveDate) -> String {
-        if parse(raw).done { self.paint(raw, Style::Grey) } else { self.tokens(raw, today) }
+        if parse(raw).done {
+            return self.paint(raw, Style::Grey);
+        }
+        match take_priority(raw) {
+            Some((p, rest)) => format!("{} {}", self.priority_marker(p), self.tokens(rest, today)),
+            None => self.tokens(raw, today),
+        }
     }
 
     /// Liste mit rechtsbündigen Nummern und Spalte für Status bzw. Priorität.
@@ -117,13 +128,7 @@ impl Renderer {
                 out.push_str(&self.paint(&line, Style::Grey));
             } else {
                 let col = match e.task.priority {
-                    Some(p) => {
-                        let marker = format!("({p})");
-                        match Self::priority_style(p) {
-                            Some(style) => self.paint(&marker, style),
-                            None => marker,
-                        }
-                    }
+                    Some(p) => self.priority_marker(p),
                     None => "   ".to_string(),
                 };
                 out.push_str(&format!("{num} {col} {}", self.tokens(&e.task.body, today)));
@@ -139,5 +144,31 @@ impl Renderer {
             s.push_str(&format!(" · {done_in_todo} erledigt – /archive räumt auf"));
         }
         s
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const RED: &str = "\u{1b}[31m";
+
+    fn today() -> NaiveDate {
+        parse_date("2026-11-21").unwrap()
+    }
+
+    #[test]
+    fn priority_colored_only_at_line_start() {
+        let r = Renderer { color: true };
+        let out = r.raw_line("(A) Siehe (A) Liste", today());
+        assert_eq!(out, format!("{RED}(A)\u{1b}[39m Siehe (A) Liste"));
+        assert_eq!(r.raw_line("Text (A) mitten", today()), "Text (A) mitten");
+    }
+
+    #[test]
+    fn overdue_due_is_red() {
+        let r = Renderer { color: true };
+        assert!(r.raw_line("Bug due:2026-11-20", today()).contains(&format!("{RED}due:2026-11-20")));
+        assert_eq!(r.raw_line("Bug due:2026-11-21", today()), "Bug due:2026-11-21");
     }
 }

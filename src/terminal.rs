@@ -23,20 +23,55 @@ fn is_mintty() -> bool {
     env::var("TERM_PROGRAM").is_ok_and(|v| v.eq_ignore_ascii_case("mintty")) || env::var_os("MSYSTEM").is_some()
 }
 
-/// Unter Windows meldet `IsTerminal` auch MSYS-Pseudoterminals (mintty ohne ConPTY).
-/// Entscheidend ist, ob die Konsolen-Schnittstelle für die Zeilenbearbeitung verfügbar ist.
+/// Lässt sich die Eingabe tatsächlich in den Raw Mode schalten? (SPEC 3)
+///
+/// `IsTerminal` allein reicht nicht: Unter Windows meldet es auch MSYS-Pseudoterminals
+/// (mintty ohne ConPTY). Deshalb wird der Modus probeweise gesetzt und sofort
+/// wiederhergestellt.
 #[cfg(windows)]
 fn console_mode_available() -> bool {
-    use windows_sys::Win32::System::Console::{GetConsoleMode, GetStdHandle, STD_INPUT_HANDLE};
+    use windows_sys::Win32::System::Console::{
+        ENABLE_ECHO_INPUT, ENABLE_LINE_INPUT, ENABLE_PROCESSED_INPUT, GetConsoleMode, GetStdHandle,
+        STD_INPUT_HANDLE, SetConsoleMode,
+    };
     let mut mode = 0;
-    // SAFETY: GetStdHandle/GetConsoleMode mit gültigem Zeiger auf eine lokale Variable.
+    // SAFETY: GetStdHandle/GetConsoleMode/SetConsoleMode mit gültigem Handle bzw.
+    // Zeiger auf eine lokale Variable; der ursprüngliche Modus wird wiederhergestellt.
     unsafe {
         let handle = GetStdHandle(STD_INPUT_HANDLE);
-        GetConsoleMode(handle, &mut mode) != 0
+        if GetConsoleMode(handle, &mut mode) == 0 {
+            return false;
+        }
+        let raw = mode & !(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT | ENABLE_PROCESSED_INPUT);
+        if SetConsoleMode(handle, raw) == 0 {
+            return false;
+        }
+        SetConsoleMode(handle, mode);
     }
+    true
 }
 
-#[cfg(not(windows))]
+#[cfg(unix)]
+fn console_mode_available() -> bool {
+    // SAFETY: termios ist ein reines Datenstruktur-Abbild; tcgetattr/tcsetattr erhalten
+    // gültige Zeiger auf lokale Variablen, der ursprüngliche Modus wird wiederhergestellt.
+    unsafe {
+        let fd = libc::STDIN_FILENO;
+        let mut original: libc::termios = std::mem::zeroed();
+        if libc::tcgetattr(fd, &mut original) != 0 {
+            return false;
+        }
+        let mut raw = original;
+        libc::cfmakeraw(&mut raw);
+        if libc::tcsetattr(fd, libc::TCSANOW, &raw) != 0 {
+            return false;
+        }
+        libc::tcsetattr(fd, libc::TCSANOW, &original);
+    }
+    true
+}
+
+#[cfg(not(any(unix, windows)))]
 fn console_mode_available() -> bool {
     true
 }

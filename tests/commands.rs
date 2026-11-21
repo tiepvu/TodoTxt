@@ -181,6 +181,8 @@ fn edit_replaces_whole_line() {
     env.ui.edits.push_back(Some("   ".into()));
     assert!(env.err("/e 2").contains("Leerer Text"));
     assert!(env.err("/e 1 2").contains("Genau eine Nummer"));
+    assert!(env.err("/e 1-1").contains("Genau eine Nummer"));
+    assert!(env.err("/e 1-2").contains("Genau eine Nummer"));
     assert_eq!(env.file(), "2026-11-19 wieder offen\nb\n");
     assert_eq!(env.state.undo.len(), 1);
 }
@@ -303,6 +305,44 @@ fn archive_moves_done_and_removes_blanks() {
     assert_eq!(env.ok("/archive"), "Nichts zu archivieren");
 }
 
+/// Abbruch zwischen Anhängen an done.txt und Schreiben von todo.txt (SPEC 6.2, 12):
+/// schlimmstenfalls Duplikate in done.txt, aber kein Verlust.
+#[cfg(unix)]
+#[test]
+fn archive_failure_after_append_loses_nothing() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let mut env = Env::new(Some("a\nx 2026-11-20 erledigt\n"));
+    fs::write(env.path("done.txt"), "").unwrap();
+    // Verzeichnis schreibgeschützt: done.txt lässt sich anhängen,
+    // die temporäre Datei für todo.txt aber nicht anlegen.
+    let dir = env.dir.path().to_path_buf();
+    fs::set_permissions(&dir, fs::Permissions::from_mode(0o555)).unwrap();
+    if fs::write(dir.join("probe"), "").is_ok() {
+        // als root greifen die Rechte nicht – Test hier nicht aussagekräftig
+        fs::set_permissions(&dir, fs::Permissions::from_mode(0o755)).unwrap();
+        return;
+    }
+
+    env.ui.confirms.push_back(true);
+    let err = env.err("/archive");
+    fs::set_permissions(&dir, fs::Permissions::from_mode(0o755)).unwrap();
+
+    assert!(err.contains("kann nicht angelegt werden"), "{err}");
+    assert_eq!(env.file(), "a\nx 2026-11-20 erledigt\n");
+    assert_eq!(fs::read_to_string(env.path("done.txt")).unwrap(), "x 2026-11-20 erledigt\n");
+    assert!(fs::read_dir(&dir).unwrap().all(|e| !e.unwrap().file_name().to_string_lossy().contains(".tmp-")));
+
+    // Erneuter Versuch klappt; die Aufgabe steht dann doppelt in done.txt
+    env.ui.confirms.push_back(true);
+    env.ok("/archive");
+    assert_eq!(env.file(), "a\n");
+    assert_eq!(
+        fs::read_to_string(env.path("done.txt")).unwrap(),
+        "x 2026-11-20 erledigt\nx 2026-11-20 erledigt\n"
+    );
+}
+
 // ---------- Nummern ----------
 
 #[test]
@@ -339,6 +379,7 @@ fn help_lists_commands() {
         assert!(out.contains(c), "{c} fehlt in:\n{out}");
     }
     assert!(env.ok("/h ls").contains("status:all"));
-    assert!(env.err("/help foo").contains("Unbekannter Befehl"));
+    assert!(env.err("/help foo").contains("Unbekannter Befehl /foo –"));
+    assert!(env.err("/help /foo").contains("Unbekannter Befehl /foo –"));
     assert_eq!(env.run("/q").unwrap(), Output::Quit);
 }

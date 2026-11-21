@@ -12,6 +12,9 @@ owo-colors = "4.4.0"
 rustyline = "19.0.0"
 toml = "1.2.1"
 
+[target."cfg(unix)".dependencies]
+libc = "0.2.191"
+
 [target."cfg(windows)".dependencies]
 windows-sys = { version = "0.61.2", features = ["Win32_System_Console", "Win32_Foundation"] }
 

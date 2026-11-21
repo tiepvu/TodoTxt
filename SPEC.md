@@ -320,7 +320,7 @@ Beispiele:
 
 ## 8. Ausgabe
 
-- Farben, wenn das Terminal sie unterstützt und `NO_COLOR` nicht gesetzt ist
+- Farben, wenn das Terminal sie unterstützt und `NO_COLOR` nicht gesetzt ist (ein leerer Wert gilt wie bei https://no-color.org als nicht gesetzt)
   - Priorität A rot, B gelb, C grün
   - `+projekt` blau, `@kontext` cyan
   - überfällige `due:` rot
@@ -381,7 +381,7 @@ Alle Einträge optional; ohne Datei gelten die Standardwerte. Unbekannte Einträ
 **Farben – Vorrang** (die erste zutreffende Regel gilt):
 
 1. `--plain` → keine Farben
-2. Umgebungsvariable `NO_COLOR` gesetzt → keine Farben
+2. Umgebungsvariable `NO_COLOR` gesetzt und nicht leer → keine Farben
 3. `color = false` → keine Farben
 4. Terminal unterstützt keine Farben → keine Farben
 5. sonst Farben

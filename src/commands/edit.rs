@@ -32,10 +32,11 @@ Beispiel:
     }
 
     fn run(&self, args: &str, ctx: &mut Context) -> Result<Output> {
-        let nums = parse_numbers(args, &ctx.state.doc)?;
-        if nums.len() != 1 || args.split_whitespace().count() != 1 {
+        // Genau eine Nummer, kein Bereich (SPEC 6.1: `/edit Nr`)
+        if args.split_whitespace().count() > 1 || args.contains('-') {
             bail!("Genau eine Nummer angeben – z. B. /edit 3");
         }
+        let nums = parse_numbers(args, &ctx.state.doc)?;
         let n = nums[0];
         let old = ctx.state.doc.lines[n - 1].text.clone();
         let Some(new) = ctx.ui.edit_line(&old) else {
