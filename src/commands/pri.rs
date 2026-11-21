@@ -63,7 +63,7 @@ Beispiele:
         let new = parser::set_priority(&raw, prio);
         let mut doc = state.doc.clone();
         doc.set_text(n, new.clone());
-        let label = format!("/pri {n} {}", prio.map_or('-', |p| p));
+        let label = format!("/pri {n} {}", prio.unwrap_or('-'));
         state.save(doc, label)?;
         let today = state.today();
         Ok(Output::Text(format!("~ {n} {}", state.renderer.raw_line(&new, today))))
