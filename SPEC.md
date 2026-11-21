@@ -242,10 +242,19 @@ todo> /done 7
 - Wirkung: neue Aufgaben bekommen es automatisch, `/ls` filtert darauf
 - `/use` ohne Argument hebt es auf
 - `/ls *` zeigt trotz aktivem Projekt alle Aufgaben
+- Das `+` darf fehlen (`/use digra` = `/use +digra`); erlaubt ist genau ein Projekt. Ein Projekt ohne Aufgaben ist erlaubt (Hinweis `noch keine Aufgaben`)
+- Groß-/Kleinschreibung zählt beim Filtern wie in Abschnitt 7 nicht
+- Das aktive Projekt wirkt in `/ls` wie ein zusätzlicher `+projekt`-Filter: `m` in `n von m Aufgaben` bleibt die Grundmenge ohne Filter, zeigt also auch die Aufgaben anderer Projekte an
+- Es gilt nur für die laufende Sitzung und wird nicht gespeichert
 
 #### `/pri Nr Prio`
 
-- `Prio` ist ein Buchstabe A–Z oder `-` zum Entfernen
+- `Prio` ist ein Buchstabe A–Z oder `-` zum Entfernen; Kleinbuchstaben werden großgeschrieben
+- Genau eine Nummer, kein Bereich
+- Ändert nur `(X) ` am Zeilenanfang; der Rest der Zeile bleibt byte-genau erhalten, die Zeile an ihrer Stelle
+- Nur für offene Aufgaben; bei erledigten Fehlermeldung mit Hinweis auf `/edit` (deren `pri:X` bleibt unverändert)
+- Gleiche Priorität bzw. Entfernen ohne Priorität: Hinweis, keine Änderung, kein Undo-Schritt
+- Ausgabe: die gespeicherte Zeile mit Nummer, z. B. `~ 3 (A) 2026-11-20 Text`
 
 #### `/projects`, `/contexts`
 
@@ -254,6 +263,11 @@ todo> /done 7
 +keycloak     2
 +batterypass  1
 ```
+
+- Gezählt werden offene Aufgaben in `todo.txt`; eine Aufgabe zählt je Token einmal
+- Groß-/Kleinschreibung zählt nicht; angezeigt wird die erste Schreibweise in der Datei
+- Sortierung: Anzahl absteigend, dann Name
+- Ohne Treffer: `Keine Projekte in offenen Aufgaben` bzw. `Keine Kontexte in offenen Aufgaben`
 
 #### `/archive`
 
@@ -427,7 +441,9 @@ src/
     ├── undo.rs
     ├── archive.rs
     ├── help.rs
-    └── …            Version 2: use, pri, projects, contexts
+    ├── use.rs       Version 2
+    ├── pri.rs       Version 2
+    └── tags.rs      Version 2: /projects und /contexts
 ```
 
 ### Command-Trait

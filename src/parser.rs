@@ -112,6 +112,16 @@ pub fn mark_done(raw: &str, today: NaiveDate) -> String {
     out
 }
 
+/// `/pri`: Priorität am Zeilenanfang setzen, ersetzen oder entfernen (`None`).
+/// Der Rest der Zeile bleibt byte-genau erhalten. Nur für offene Aufgaben.
+pub fn set_priority(raw: &str, prio: Option<char>) -> String {
+    let rest = take_priority(raw).map_or(raw, |(_, r)| r);
+    match prio {
+        Some(p) => format!("({p}) {rest}"),
+        None => rest.to_string(),
+    }
+}
+
 pub const ERR_STARTS_WITH_X: &str =
     "Text beginnt mit „x “ und würde als erledigt gelten – bitte umformulieren";
 
@@ -191,6 +201,14 @@ mod tests {
             "x 2026-11-21 2026-11-20 Login  fixen +digra pri:A"
         );
         assert_eq!(mark_done("Ohne Datum", today), "x 2026-11-21 Ohne Datum");
+    }
+
+    #[test]
+    fn set_priority_keeps_rest() {
+        assert_eq!(set_priority("2026-11-20 Bug  +p", Some('A')), "(A) 2026-11-20 Bug  +p");
+        assert_eq!(set_priority("(B) 2026-11-20 Bug", Some('A')), "(A) 2026-11-20 Bug");
+        assert_eq!(set_priority("(B) 2026-11-20 Bug", None), "2026-11-20 Bug");
+        assert_eq!(set_priority("(b) Text", Some('C')), "(C) (b) Text");
     }
 
     #[test]

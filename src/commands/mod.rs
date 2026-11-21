@@ -12,8 +12,11 @@ mod done;
 mod edit;
 mod help;
 mod ls;
+mod pri;
 mod quit;
+mod tags;
 mod undo;
+mod r#use;
 
 /// Interaktion mit dem Benutzer. Befehle greifen nie direkt aufs Terminal zu.
 pub trait Prompter {
@@ -69,7 +72,7 @@ impl Default for Registry {
 }
 
 impl Registry {
-    /// Befehle der Version 1.
+    /// Befehle der Versionen 1 und 2, in der Reihenfolge der Hilfe.
     pub fn new() -> Self {
         Registry {
             commands: vec![
@@ -78,8 +81,12 @@ impl Registry {
                 Box::new(done::Done),
                 Box::new(edit::Edit),
                 Box::new(del::Del),
+                Box::new(pri::Pri),
                 Box::new(undo::Undo),
                 Box::new(archive::Archive),
+                Box::new(r#use::Use),
+                Box::new(tags::Projects),
+                Box::new(tags::Contexts),
                 Box::new(help::Help),
                 Box::new(quit::Quit),
             ],

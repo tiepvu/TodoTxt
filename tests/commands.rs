@@ -383,3 +383,96 @@ fn help_lists_commands() {
     assert!(env.err("/help /foo").contains("Unbekannter Befehl /foo –"));
     assert_eq!(env.run("/q").unwrap(), Output::Quit);
 }
+
+// ---------- Version 2: /use ----------
+
+#[test]
+fn use_sets_prompt_and_tags_new_tasks() {
+    let mut env = Env::new(Some("a +digra\nb +web\n"));
+    assert_eq!(env.state.prompt(), "todo> ");
+    assert_eq!(env.ok("/use +digra"), "Aktives Projekt: +digra");
+    assert_eq!(env.state.prompt(), "todo +digra> ");
+    assert_eq!(env.ok("/use neu"), "Aktives Projekt: +neu (noch keine Aufgaben)");
+    env.ok("/use +digra");
+
+    // ohne eigenes Projekt: aktives wird angehängt
+    assert_eq!(env.ok("Login fixen"), "+ 3 2026-11-21 Login fixen +digra");
+    // mit anderem Projekt: unverändert
+    assert_eq!(env.ok("Theme +web"), "+ 4 2026-11-21 Theme +web");
+    assert_eq!(env.ok("/undo"), "Rückgängig: /add Theme +web");
+
+    assert!(env.err("/use +a +b").contains("Genau ein Projekt"));
+    assert!(env.err("/use @ctx").contains("Genau ein Projekt"));
+    assert_eq!(env.ok("/use"), "Aktives Projekt +digra aufgehoben");
+    assert_eq!(env.state.prompt(), "todo> ");
+    assert_eq!(env.ok("/use"), "Kein aktives Projekt");
+    assert_eq!(env.ok("ohne"), "+ 4 2026-11-21 ohne");
+}
+
+#[test]
+fn ls_filters_on_active_project_unless_star() {
+    let mut env = Env::new(Some("a +Digra\nb +web\nc +digra @rechner\n"));
+    env.ok("/use +digra");
+    assert_eq!(env.ok("/ls"), "1     a +Digra\n3     c +digra @rechner\n2 von 3 Aufgaben");
+    assert_eq!(env.ok("/ls @rechner"), "3     c +digra @rechner\n1 von 3 Aufgaben");
+    assert_eq!(env.ok("/ls *"), "1     a +Digra\n2     b +web\n3     c +digra @rechner\n3 von 3 Aufgaben");
+    env.ok("/use");
+    assert!(env.ok("/ls").ends_with("3 von 3 Aufgaben"));
+}
+
+// ---------- Version 2: /pri ----------
+
+#[test]
+fn pri_sets_replaces_and_removes_in_place() {
+    let mut env = Env::new(Some("2026-11-20 Bug  fixen +p\nx 2026-11-21 fertig pri:B\n\n"));
+    assert_eq!(env.ok("/pri 1 a"), "~ 1 (A) 2026-11-20 Bug  fixen +p");
+    assert_eq!(env.ok("/p 1 C"), "~ 1 (C) 2026-11-20 Bug  fixen +p");
+    assert_eq!(env.ok("/pri 1 C"), "1 hat bereits Priorität C");
+    assert_eq!(env.file(), "(C) 2026-11-20 Bug  fixen +p\nx 2026-11-21 fertig pri:B\n\n");
+    assert_eq!(env.ok("/pri 1 -"), "~ 1 2026-11-20 Bug  fixen +p");
+    assert_eq!(env.ok("/pri 1 -"), "1 hat keine Priorität");
+    assert_eq!(env.file(), "2026-11-20 Bug  fixen +p\nx 2026-11-21 fertig pri:B\n\n");
+
+    assert_eq!(env.ok("/undo"), "Rückgängig: /pri 1 -");
+    assert_eq!(env.file(), "(C) 2026-11-20 Bug  fixen +p\nx 2026-11-21 fertig pri:B\n\n");
+
+    assert!(env.err("/pri 2 A").contains("ist erledigt"));
+    assert!(env.err("/pri 3 A").contains("Leerzeile"));
+    assert!(env.err("/pri 9 A").contains("gibt es nicht"));
+    assert!(env.err("/pri 1").contains("Nummer und Priorität"));
+    assert!(env.err("/pri 1-2 A").contains("Nummer und Priorität"));
+    assert!(env.err("/pri 1 AB").contains("Buchstabe A–Z"));
+    assert!(env.err("/pri 1 7").contains("Buchstabe A–Z"));
+}
+
+#[test]
+fn pri_is_rejected_after_external_change() {
+    let mut env = Env::new(Some("a\n"));
+    env.write_external("neu\na\n");
+    assert!(env.err("/pri 1 A").contains("extern geändert"));
+    assert_eq!(env.file(), "neu\na\n");
+}
+
+// ---------- Version 2: /projects, /contexts ----------
+
+#[test]
+fn projects_and_contexts_count_open_tasks() {
+    let mut env = Env::new(Some(
+        "a +digra @rechner\nb +Digra +digra\nx 2026-11-21 c +keycloak +digra\nd +batterypass @telefon\n\ne +keycloak @rechner\nf +digra\n",
+    ));
+    assert_eq!(env.ok("/projects"), "+digra        3\n+batterypass  1\n+keycloak     1");
+    assert_eq!(env.ok("/cx"), "@rechner  2\n@telefon  1");
+
+    let mut empty = Env::new(Some("nur text\n"));
+    assert_eq!(empty.ok("/pj"), "Keine Projekte in offenen Aufgaben");
+    assert_eq!(empty.ok("/contexts"), "Keine Kontexte in offenen Aufgaben");
+}
+
+#[test]
+fn help_lists_version_2_commands() {
+    let mut env = Env::new(Some(""));
+    let out = env.ok("/help");
+    for c in ["/use [+projekt]", "/pri, /p Nr Prio", "/projects, /pj", "/contexts, /cx"] {
+        assert!(out.contains(c), "{c} fehlt in:\n{out}");
+    }
+}

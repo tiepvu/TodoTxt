@@ -101,7 +101,7 @@ pub fn run(mut state: State, history: Option<PathBuf>) -> anyhow::Result<()> {
     }
 
     loop {
-        let line = match editor.readline("todo> ") {
+        let line = match editor.readline(&state.prompt()) {
             Ok(line) => line,
             Err(ReadlineError::Interrupted) => continue,
             Err(ReadlineError::Eof) => break,

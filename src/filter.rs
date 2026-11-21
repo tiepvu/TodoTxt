@@ -71,7 +71,7 @@ pub enum Term {
 pub struct Filter {
     pub terms: Vec<Term>,
     pub status: Status,
-    /// `*` – wirkt erst mit `/use` (Version 2)
+    /// `*` – aktives Projekt (`/use`) ignorieren; angewendet in `view::listing`
     pub ignore_active: bool,
 }
 

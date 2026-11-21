@@ -20,6 +20,8 @@ pub struct State {
     pub renderer: Renderer,
     /// Fest vorgegebenes „heute“ (Tests)
     pub today_override: Option<NaiveDate>,
+    /// Per `/use` gesetztes Projekt, z. B. `+digra` (SPEC 6.2, Version 2)
+    pub active_project: Option<String>,
 }
 
 impl State {
@@ -32,6 +34,7 @@ impl State {
             undo: UndoStack::default(),
             renderer: Renderer { color },
             today_override: None,
+            active_project: None,
         };
         state.reload()?;
         Ok(state)
@@ -88,6 +91,14 @@ impl State {
         self.doc = doc.clone();
         self.fp = fingerprint(Some(&bytes));
         Ok(current)
+    }
+
+    /// Prompt der REPL: `todo>` bzw. mit aktivem Projekt `todo +digra>`.
+    pub fn prompt(&self) -> String {
+        match &self.active_project {
+            Some(p) => format!("todo {p}> "),
+            None => "todo> ".to_string(),
+        }
     }
 
     /// Alle nicht-leeren Zeilen mit Nummer (1-basiert).

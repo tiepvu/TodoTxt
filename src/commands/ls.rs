@@ -45,6 +45,7 @@ Groß-/Kleinschreibung zählt nicht.
   created>3d  created>=1w
   status:all            auch erledigte (inkl. done.txt)
   status:done           nur erledigte (inkl. done.txt)
+  *                     aktives Projekt (/use) ignorieren
 
 Datum: JJJJ-MM-TT, today oder N mit d/w/m. Bei due zählt N in die Zukunft,
 bei created in die Vergangenheit. < und > ohne Stichtag, <= und >= mit.

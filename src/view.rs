@@ -34,7 +34,11 @@ pub fn listing(state: &State, filter: &Filter) -> Result<Listing> {
     }
     let base: Vec<Entry> = pool.into_iter().filter(|e| filter.status.accepts(&e.task)).collect();
     let total = base.len();
-    let mut entries: Vec<Entry> = base.into_iter().filter(|e| filter.matches_terms(&e.task)).collect();
+    // Aktives Projekt wirkt wie ein zusätzlicher +projekt-Filter, außer bei `*` (SPEC 6.2 /use)
+    let active = state.active_project.as_ref().filter(|_| !filter.ignore_active).map(|p| p.to_lowercase());
+    let in_active = |t: &Task| active.as_ref().is_none_or(|p| t.projects.iter().any(|x| x.to_lowercase() == *p));
+    let mut entries: Vec<Entry> =
+        base.into_iter().filter(|e| in_active(&e.task) && filter.matches_terms(&e.task)).collect();
     sort(&mut entries, &state.config.default_sort);
     Ok(Listing { entries, total, done_in_todo })
 }

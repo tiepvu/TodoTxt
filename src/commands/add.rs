@@ -26,6 +26,7 @@ Hängt die Aufgabe als neue Zeile ans Ende von todo.txt und gibt ihre Nummer aus
 - (A) am Anfang setzt die Priorität; ein Datum am Anfang gilt als Erstellungsdatum.
 - Text, der mit „x “ beginnt, wird abgelehnt (würde als erledigt gelten).
 - Aufgaben, die mit / beginnen, nur über /add erfassen.
+- Ist per /use ein Projekt aktiv und enthält der Text kein +projekt, wird es angehängt.
 
 Beispiele:
   Login-Bug fixen +digra @rechner
@@ -40,7 +41,14 @@ Beispiele:
         }
         let state = &mut *ctx.state;
         let today = state.today();
-        let raw = parser::build_add(text, today, state.config.date_on_add).map_err(|e| anyhow!(e))?;
+        let mut raw = parser::build_add(text, today, state.config.date_on_add).map_err(|e| anyhow!(e))?;
+        // Aktives Projekt nur, wenn der Text gar kein +projekt enthält (SPEC 6.2)
+        if let Some(p) = &state.active_project
+            && parser::parse(&raw).projects.is_empty()
+        {
+            raw.push(' ');
+            raw.push_str(p);
+        }
         let mut doc = state.doc.clone();
         let n = doc.push_line(raw.clone());
         state.save(doc, format!("/add {text}"))?;
