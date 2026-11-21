@@ -499,7 +499,8 @@ In der REPL setzt `rustyline` den `Prompter` um, in Tests eine Attrappe mit vorg
 
 - `cargo build --release`
 - Linux: zusätzlich `x86_64-unknown-linux-musl` für ein statisches Binary
-- Releases für: Linux x86_64, macOS arm64/x86_64, Windows x86_64
+- Releases für: macOS arm64/x86_64, Windows x86_64 – automatisch per GitHub Actions (`.github/workflows/release.yml`) beim Push eines Tags `vX.Y.Z`, der zur Version in `Cargo.toml` passen muss; vorher laufen Clippy und Tests auf macOS und Windows
+- Linux-Releases vorerst nicht; selbst bauen mit `cargo build --release`
 
 ## 12. Tests
 
